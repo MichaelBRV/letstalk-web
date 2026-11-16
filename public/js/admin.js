@@ -173,7 +173,7 @@ export async function viewConfig(view) {
           <div class="field"><label>Cargo</label><input name="firma_cargo" value="${cfg.firma_cargo}"></div>
           <div class="field"><label>Ciudad</label><input name="ciudad" value="${cfg.ciudad}"></div>
           <div class="field"><label>Curso que aparece en el certificado</label><input name="curso_certificado" value="${cfg.curso_certificado || ''}"></div>
-          <div class="field"><label>Horas por nivel (certificado)</label><input name="horas_por_nivel" type="number" min="1" value="${cfg.horas_por_nivel || 180}"></div>
+          <div class="field"><label>Horas estándar por curso (certificado)</label><input name="horas_por_nivel" type="number" min="1" value="${cfg.horas_por_nivel || 180}"></div>
           ${isCoord() ? html`<div class="form-foot"><span></span><button class="btn btn-primary">Guardar configuración</button></div>` : ''}
         </form>`
         : ''}

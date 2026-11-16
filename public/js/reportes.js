@@ -261,7 +261,7 @@ export async function viewCertificado(view, [id]) {
         ${campo({ x0: 78, y0: 379, x1: 515, y1: 413, size: 20.16 }, cfg.curso_certificado || "Let's Talk Business English")}
         ${campo({ x0: 236, y0: 415, x1: 303, y1: 437, size: 10.08 }, ddmmyyyy(c.fecha_inicio))}
         ${campo({ x0: 321, y0: 415, x1: 387, y1: 436, size: 10.08 }, ddmmyyyy(c.fecha))}
-        ${campo({ x0: 206, y0: 454, x1: 387, y1: 475, size: 10.08 }, `${cfg.horas_por_nivel || 180} HOURS`)}
+        ${campo({ x0: 206, y0: 454, x1: 387, y1: 475, size: 10.08 }, `${c.horas || cfg.horas_por_nivel || 180} HOURS`)}
         ${campo({ x0: 302, y0: 552, x1: 510, y1: 572, size: 14.4, align: 'left' }, c.nivel_cursado)}
         ${campo({ x0: 303, y0: 577, x1: 510, y1: 593, size: 14.4, align: 'left' }, c.asistencia_pct == null ? '—' : `${Math.round(c.asistencia_pct)}%`)}
         ${campo({ x0: 131, y0: 676, x1: 465, y1: 742, size: 10.08, valign: 'top' }, html`<span>${fechaIngles(c.fecha)}<br>${ciudad}</span>`)}

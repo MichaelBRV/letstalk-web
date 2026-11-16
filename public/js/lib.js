@@ -58,7 +58,56 @@ const guardarToken = (t) => {
   }
 };
 
-export async function api(path, { method = 'GET', body } = {}) {
+// Aviso visible cuando el servidor tarda (la base de datos gratuita "despierta" si nadie la usó por un rato).
+let pendientes = 0;
+let avisoTimer = null;
+function avisoEspera(on) {
+  pendientes += on ? 1 : -1;
+  let el = document.getElementById('aviso-espera');
+  if (pendientes > 0 && !avisoTimer && !el?.classList.contains('on')) {
+    avisoTimer = setTimeout(() => {
+      avisoTimer = null;
+      if (pendientes <= 0) return;
+      if (!el) {
+        el = document.createElement('div');
+        el.id = 'aviso-espera';
+        el.setAttribute('role', 'status');
+        el.innerHTML = '<span class="spinner" aria-hidden="true"></span><div><strong>Conectando con el servidor…</strong><span>La primera carga del día puede tardar hasta un minuto.</span></div>';
+        document.body.append(el);
+      }
+      el.classList.add('on');
+    }, 2500);
+  }
+  if (pendientes <= 0) {
+    pendientes = 0;
+    clearTimeout(avisoTimer);
+    avisoTimer = null;
+    el?.classList.remove('on');
+  }
+}
+const esperar = (ms) => new Promise((r) => setTimeout(r, ms));
+
+export async function api(path, opts = {}) {
+  avisoEspera(true);
+  try {
+    // 503 = la base de datos está despertando: reintenta algunas veces antes de mostrar un error
+    for (let intento = 0; ; intento++) {
+      try {
+        return await apiUnaVez(path, opts);
+      } catch (e) {
+        if (e.status === 503 && intento < 4) {
+          await esperar(4000 + intento * 3000);
+          continue;
+        }
+        throw e;
+      }
+    }
+  } finally {
+    avisoEspera(false);
+  }
+}
+
+async function apiUnaVez(path, { method = 'GET', body } = {}) {
   const headers = body !== undefined ? { 'Content-Type': 'application/json' } : {};
   const token = API_BASE ? leerToken() : null;
   if (token) headers.Authorization = `Bearer ${token}`;
@@ -85,7 +134,8 @@ export async function api(path, { method = 'GET', body } = {}) {
   }
   if (path === '/logout') guardarToken(null);
   if (!res.ok) {
-    if (res.status === 401 && path !== '/login') {
+    if (res.status === 403 && data?.debe_cambiar_clave) window.dispatchEvent(new CustomEvent('cambiar-clave'));
+    if (res.status === 401 && path !== '/login' && path !== '/login/microsoft') {
       guardarToken(null);
       window.dispatchEvent(new CustomEvent('session-expired'));
     }

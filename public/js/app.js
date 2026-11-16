@@ -5,6 +5,7 @@ import { viewEstudiantes } from './estudiantes.js';
 import { viewEmpresas, viewUsuarios, viewAuditoria, viewConfig } from './admin.js';
 import { viewReportes, viewReporteFinal, viewReporteAvance, viewCertificado } from './reportes.js';
 import { viewAnalitica } from './analitica.js';
+import { iniciarMicrosoft, completarMicrosoft } from './microsoft.js';
 import { viewSeguimiento, registrarSeguimiento, badgeCaso } from './seguimiento.js';
 
 const app = $('#app');
@@ -74,6 +75,11 @@ function renderLogin(msg) {
             <p class="form-error" ${msg ? '' : raw('hidden')}>${msg || ''}</p>
             <button class="btn btn-primary btn-block btn-lg" type="submit">Ingresar</button>
           </form>
+          <div id="ms-box" hidden>
+            <div class="login-sep"><span>o</span></div>
+            <button class="btn btn-ghost btn-block btn-lg btn-ms" type="button" id="ms-login">${MS_LOGO} Iniciar sesión con Microsoft</button>
+            <p class="hint center">Con su cuenta @gledcenter.com</p>
+          </div>
           <p class="login-foot">${icon('shield')} Cada acceso queda registrado. La sesión se cierra tras 30 minutos sin uso.</p>
         </div>
       </section>
@@ -97,7 +103,78 @@ function renderLogin(msg) {
     }
   });
   $('#email').focus();
+  // Botón de Microsoft (solo si está configurado en el servidor)
+  api('/auth/config')
+    .then((cfg) => {
+      if (!cfg?.habilitado) return;
+      $('#ms-box').hidden = false;
+      $('#ms-login').addEventListener('click', (e) => {
+        e.currentTarget.disabled = true;
+        iniciarMicrosoft(cfg).catch(() => renderLogin('No se pudo abrir el inicio de sesión de Microsoft.'));
+      });
+    })
+    .catch(() => {});
 }
+
+const MS_LOGO = raw(
+  '<svg class="ico" viewBox="0 0 21 21" aria-hidden="true"><rect x="1" y="1" width="9" height="9" fill="#f25022"/><rect x="11" y="1" width="9" height="9" fill="#7fba00"/><rect x="1" y="11" width="9" height="9" fill="#00a4ef"/><rect x="11" y="11" width="9" height="9" fill="#ffb900"/></svg>'
+);
+
+// ---------- cambio obligatorio de la contraseña genérica ----------
+function renderCambioClave(msg) {
+  document.body.classList.remove('shell');
+  setHTML(
+    app,
+    html`<main class="login login-solo">
+      <section class="login-panel">
+        <div class="login-card">
+          <img class="logo" src="/img/logo-letstalk.png" alt="Let's Talk">
+          <h1>Cambie su contraseña</h1>
+          <p class="muted">Hola, ${state.user.nombre}. Por seguridad, reemplace la contraseña genérica por una propia antes de continuar.</p>
+          <form id="clave-form" autocomplete="off">
+            <div class="field"><label for="actual">Contraseña actual (genérica)</label><input id="actual" name="actual" type="password" required autocomplete="current-password"></div>
+            <div class="field"><label for="nueva">Nueva contraseña</label><input id="nueva" name="nueva" type="password" required minlength="10" autocomplete="new-password"><small class="hint">Mínimo 10 caracteres, con letras y números.</small></div>
+            <div class="field"><label for="repetir">Repetir nueva contraseña</label><input id="repetir" name="repetir" type="password" required autocomplete="new-password"></div>
+            <p class="form-error" ${msg ? '' : raw('hidden')}>${msg || ''}</p>
+            <button class="btn btn-primary btn-block btn-lg" type="submit">Guardar y continuar</button>
+          </form>
+          <p class="login-foot"><button class="link" type="button" id="salir">Cerrar sesión</button></p>
+        </div>
+      </section>
+    </main>`
+  );
+  const form = $('#clave-form');
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const d = Object.fromEntries(new FormData(form));
+    const err = $('.form-error', form);
+    if (d.nueva !== d.repetir) {
+      err.textContent = 'Las contraseñas nuevas no coinciden.';
+      err.hidden = false;
+      return;
+    }
+    const btn = $('button[type=submit]', form);
+    btn.disabled = true;
+    try {
+      await api('/me/password', { method: 'POST', body: { actual: d.actual, nueva: d.nueva } });
+      state.user.debe_cambiar_clave = 0;
+      toast('Contraseña actualizada');
+      await boot();
+    } catch (ex) {
+      err.textContent = ex.message;
+      err.hidden = false;
+    } finally {
+      btn.disabled = false;
+    }
+  });
+  $('#salir').addEventListener('click', async () => {
+    await api('/logout', { method: 'POST', body: {} }).catch(() => {});
+    state.user = null;
+    renderLogin();
+  });
+  $('#actual').focus();
+}
+window.addEventListener('cambiar-clave', () => state.user && renderCambioClave());
 
 // ---------- estructura principal ----------
 function renderShell() {
@@ -297,11 +374,19 @@ window.addEventListener('session-expired', () => {
 });
 
 async function boot() {
+  // ¿Volvemos del inicio de sesión de Microsoft?
+  try {
+    const ms = await completarMicrosoft();
+    if (ms) state.user = await api('/login/microsoft', { method: 'POST', body: ms });
+  } catch (e) {
+    return renderLogin(e.message);
+  }
   try {
     state.user = state.user || (await api('/me'));
   } catch {
     return renderLogin();
   }
+  if (state.user.debe_cambiar_clave) return renderCambioClave();
   [state.niveles, state.config] = await Promise.all([api('/niveles'), api('/config')]);
   renderShell();
   if (!location.hash || location.hash === '#/') location.hash = '#/inicio';

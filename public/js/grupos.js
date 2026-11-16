@@ -56,6 +56,8 @@ export async function editarGrupo(g = {}) {
       { name: 'profesor_id', label: 'Profesor', type: 'select', value: g.profesor_id, placeholder: 'Sin asignar', options: usuarios.filter((u) => u.rol === 'profesor' && u.activo).map((u) => [u.id, u.nombre]) },
       { name: 'modalidad', label: 'Modalidad', type: 'select', value: g.modalidad || 'Presencial', options: ['Presencial', 'Online', 'Híbrida'].map((m) => [m, m]) },
       { name: 'horario', label: 'Horario', value: g.horario, placeholder: 'Ej. Mar y Jue 17:30-19:00', full: true },
+      { name: 'horas', label: 'Horas del curso', type: 'number', min: 1, max: 2000, value: g.horas, placeholder: `Estándar: ${state.config.horas_por_nivel || 180}`,
+        hint: 'Déjelo vacío para usar el estándar. Aparece en el certificado ("Lesson per level").' },
       { name: 'fecha_inicio', label: 'Fecha de inicio', type: 'date', value: g.fecha_inicio },
       { name: 'fecha_fin', label: 'Fecha de fin', type: 'date', value: g.fecha_fin },
     ],
@@ -87,7 +89,7 @@ export async function viewGrupo(view, [id, tab = 'estudiantes'], params) {
     <div class="page-head">
       <div><h1>${g.nombre} <span class="level level-lg">${g.nivel}</span> ${estadoBadge(g.estado)}</h1>
         <p class="muted">${g.empresa} · ${g.modalidad} · ${g.horario || 'Sin horario'} · Profesor: ${g.profesor || 'sin asignar'}
-        ${g.fecha_inicio ? html` · ${fechaCorta(g.fecha_inicio)} – ${fechaCorta(g.fecha_fin)}` : ''}</p></div>
+        ${g.fecha_inicio ? html` · ${fechaCorta(g.fecha_inicio)} – ${fechaCorta(g.fecha_fin)}` : ''} · ${g.horas || state.config.horas_por_nivel || 180} horas</p></div>
       <div class="actions">
         <a class="btn btn-ghost" href="#/reportes/avance/${g.id}">Reporte de avance</a>
         ${isStaff() ? html`<button class="btn btn-ghost" id="editar">Editar</button><button class="btn btn-ghost" id="asignar">Asignar estudiantes</button>` : ''}

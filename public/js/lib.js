@@ -128,7 +128,7 @@ async function apiUnaVez(path, { method = 'GET', body } = {}) {
   } catch {
     /* respuesta vacía */
   }
-  if (path === '/login' && res.ok && data?.token) {
+  if ((path === '/login' || path === '/login/microsoft') && res.ok && data?.token) {
     guardarToken(data.token);
     delete data.token;
   }
